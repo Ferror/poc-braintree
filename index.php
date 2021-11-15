@@ -11,77 +11,68 @@ $gateway = new Gateway(json_decode(file_get_contents('.env.json'), true, 512, JS
 
 $app->get('/', new \Ferror\HomeAction());
 
-$app->get('/customers', static function (Request $request, Response $response, array $args) use ($gateway) {
+$app->map(['POST'], '/customers', static function (Request $request, Response $response, array $args) use ($gateway) {
+    // create Customer in Wfirma
+    // create Customer in Braintree
+
+    // create Customer in DB and external ids (braintree, wfrima)
     $result = $gateway->customer()->create([
         'email' => 'email@domain.com',
-        'paymentMethodNonce' => 'nonce', //@TODO
-        'creditCard' => [
-            'billingAddress' => [
-                'firstName' => 'Jen',
-                'lastName' => 'Smith',
-                'company' => 'Braintree',
-                'streetAddress' => '123 Address',
-                'locality' => 'City',
-                'region' => 'State',
-                'postalCode' => '12345',
-                'countryCodeAlpha2' => 'PL',
-            ],
-            'options' => [
-                'verifyCard' => true
-            ],
-        ]
+        'firstName' => 'Jen',
+        'lastName' => 'Smith',
+        'company' => 'Braintree',
     ]);
+
+    file_put_contents('memory/customer.json', json_encode(['customer' => ['braintree_id' => $result->customer->id]], JSON_THROW_ON_ERROR));
 
     $response
         ->withHeader('Content-Type', 'application/json')
         ->withHeader('Access-Control-Allow-Origin', '*')
-        ->getBody()->write(json_encode($result->jsonSerialize(), JSON_THROW_ON_ERROR));
+        ->getBody()->write(json_encode($result, JSON_THROW_ON_ERROR));
 
     return $response;
 });
 
 $app->map(['GET', 'OPTIONS'], '/braintree/token', new \Ferror\CreateBraintreeTokenAction($gateway));
 
-$app->map(['POST'], '/braintree/payment-method-nonce', static function (Request $request, Response $response) use ($gateway) {
+$app->map(['POST'], '/braintree/payment-method', static function (Request $request, Response $response) use ($gateway) {
     $body = json_decode($request->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
+    $memory = json_decode(file_get_contents('memory/customer.json'), true, 512, JSON_THROW_ON_ERROR);
 
-    $result = $gateway->customer()->create([
-        'email' => 'email@domain.com',
+    //v2
+    $result = $gateway->paymentMethod()->create([
+        'customerId' => $memory['customer']['braintree_id'],
         'paymentMethodNonce' => $body['token'],
-        'creditCard' => [
-            'billingAddress' => [
-                'firstName' => 'Jen',
-                'lastName' => 'Smith',
-                'company' => 'Braintree',
-                'streetAddress' => '123 Address',
-                'locality' => 'City',
-                'region' => 'State',
-                'postalCode' => '12345',
-                'countryCodeAlpha2' => 'PL',
-            ],
-            'options' => [
-                'verifyCard' => true
-            ],
+        'billingAddress' => [
+            'firstName' => 'Jen',
+            'lastName' => 'Smith',
+            'company' => 'Braintree',
+            'streetAddress' => '123 Address',
+            'locality' => 'City',
+            'region' => 'State',
+            'postalCode' => '12345',
+            'countryCodeAlpha2' => 'PL',
+        ],
+        'options' => [
+            'makeDefault' => true,
         ]
     ]);
 
     $response
         ->withHeader('Content-Type', 'application/json')
         ->getBody()
-        ->write(json_encode(['nonce' => $gateway->paymentMethodNonce()->create($result->customer->paymentMethods[0]->token)->paymentMethodNonce->nonce], JSON_THROW_ON_ERROR));
+        ->write(json_encode(['nonce' => $gateway->paymentMethodNonce()->create($result->paymentMethod->token)->paymentMethodNonce->nonce], JSON_THROW_ON_ERROR));
 
     return $response;
 });
 
 $app->map(['POST'], '/payments/subscriptions', function (Request $request, Response $response) use ($gateway) {
     $body = json_decode($request->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
-
     $result = $gateway->subscription()->create([
         'paymentMethodNonce' => $body['nonce'],
         'merchantAccountId' => 'landingiUSD',
         'planId' => 'agency_19_months_12_usd'
     ]);
-
     $response
         ->withHeader('Content-Type', 'application/json')
         ->getBody()
