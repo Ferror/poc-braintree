@@ -44,6 +44,15 @@ document.querySelector('#cc').addEventListener('submit', (event) => {
     // )
 });
 
+document.querySelector('#transaction').addEventListener('submit', (event) => {
+    event.preventDefault();
+    console.log('transaction - form');
+
+    request('POST', '/payments/transactions')
+        .catch(function (error) {
+            console.log(error);
+        })
+});
 
 async function run(card_number, expiration_date, cvv_number)
 {
@@ -54,9 +63,9 @@ async function run(card_number, expiration_date, cvv_number)
     })
 
     request('POST', '/customers')
-        .catch(function (error) {
-            console.log(error);
-        })
+    .catch(function (error) {
+        console.log(error);
+    })
 
 
     const { token } =  await request('GET', '/braintree/token')

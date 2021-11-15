@@ -39,7 +39,6 @@ $app->map(['POST'], '/braintree/payment-method', static function (Request $reque
     $body = json_decode($request->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
     $memory = json_decode(file_get_contents('memory/customer.json'), true, 512, JSON_THROW_ON_ERROR);
 
-    //v2
     $result = $gateway->paymentMethod()->create([
         'customerId' => $memory['customer']['braintree_id'],
         'paymentMethodNonce' => $body['token'],
@@ -66,12 +65,41 @@ $app->map(['POST'], '/braintree/payment-method', static function (Request $reque
     return $response;
 });
 
+/**
+ * 1. Cancel all other subscriptions
+ * 2. Create pending or active subscription
+ */
 $app->map(['POST'], '/payments/subscriptions', function (Request $request, Response $response) use ($gateway) {
     $body = json_decode($request->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
     $result = $gateway->subscription()->create([
         'paymentMethodNonce' => $body['nonce'],
         'merchantAccountId' => 'landingiUSD',
         'planId' => 'agency_19_months_12_usd'
+    ]);
+
+//    $memory = json_decode(file_get_contents('memory/customer.json'), true, 512, JSON_THROW_ON_ERROR);
+//    $result = $gateway->subscription()->create([
+//        'paymentMethodToken' => $gateway->customer()->find($memory['customer']['braintree_id'])->paymentMethods[0]->token,
+//        'merchantAccountId' => 'landingiUSD',
+//        'planId' => 'agency_19_months_12_usd'
+//    ]);
+    $response
+        ->withHeader('Content-Type', 'application/json')
+        ->getBody()
+        ->write(json_encode([$result], JSON_THROW_ON_ERROR));
+
+    return $response;
+});
+
+$app->map(['POST'], '/payments/transactions', function (Request $request, Response $response) use ($gateway) {
+    $memory = json_decode(file_get_contents('memory/customer.json'), true, 512, JSON_THROW_ON_ERROR);
+    $result = $gateway->transaction()->sale([
+        'customerId' => $memory['customer']['braintree_id'],
+        'merchantAccountId' => 'landingiUSD',
+        'amount' => 100.00,
+        'options' => [
+            'submitForSettlement' => true,
+        ],
     ]);
     $response
         ->withHeader('Content-Type', 'application/json')
