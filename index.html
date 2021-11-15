@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    <form id="billing-data">
+        <fieldset>
+            <legend>Billing Info</legend>
+            <input type="text" placeholder="country">
+            <input type="text" placeholder="city">
+            <input type="text" placeholder="street">
+            <input type="text" placeholder="postal">
+            <input type="submit">
+        </fieldset>
+    </form>
+
+    <form id="cc">
+        <fieldset>
+            <legend>Credit Card</legend>
+            <input type="text" placeholder="Credit Card Number" id="cc_ccn">
+            <input type="text" placeholder="CVV" id="cc_cvv">
+            <input type="text" placeholder="Expire Date" id="cc_date">
+            <input type="submit">
+        </fieldset>
+    </form>
+
+    <script src="bower_components/braintree-web/index.js"></script>
+    <script src="app.js"/>
+</body>
+</html>

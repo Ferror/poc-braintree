@@ -1,0 +1,13 @@
+{
+    "name": "poc-braintree",
+    "main": "app.js",
+    "license": "MIT",
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components"
+    ],
+    "dependencies": {
+        "braintree-web": "^3.83.0"
+    }
+}
