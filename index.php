@@ -41,7 +41,7 @@ $app->map(['POST'], '/braintree/payment-method', static function (Request $reque
 
     $result = $gateway->paymentMethod()->create([
         'customerId' => $memory['customer']['braintree_id'],
-        'paymentMethodNonce' => $body['token'],
+        'paymentMethodNonce' => $body['nonce'],
         'billingAddress' => [
             'firstName' => 'Jen',
             'lastName' => 'Smith',
@@ -60,7 +60,18 @@ $app->map(['POST'], '/braintree/payment-method', static function (Request $reque
     $response
         ->withHeader('Content-Type', 'application/json')
         ->getBody()
-        ->write(json_encode(['nonce' => $gateway->paymentMethodNonce()->create($result->paymentMethod->token)->paymentMethodNonce->nonce], JSON_THROW_ON_ERROR));
+        ->write(json_encode(['token' => $result->paymentMethod->token], JSON_THROW_ON_ERROR));
+
+    return $response;
+});
+
+$app->map(['POST'], '/braintree/payment-method-nonce', static function (Request $request, Response $response) use ($gateway) {
+    $body = json_decode($request->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
+
+    $response
+        ->withHeader('Content-Type', 'application/json')
+        ->getBody()
+        ->write(json_encode(['nonce' => $gateway->paymentMethodNonce()->create($body['token'])->paymentMethodNonce->nonce], JSON_THROW_ON_ERROR));
 
     return $response;
 });
@@ -71,18 +82,22 @@ $app->map(['POST'], '/braintree/payment-method', static function (Request $reque
  */
 $app->map(['POST'], '/payments/subscriptions', function (Request $request, Response $response) use ($gateway) {
     $body = json_decode($request->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
-    $result = $gateway->subscription()->create([
-        'paymentMethodNonce' => $body['nonce'],
-        'merchantAccountId' => 'landingiUSD',
-        'planId' => 'agency_19_months_12_usd'
-    ]);
 
-//    $memory = json_decode(file_get_contents('memory/customer.json'), true, 512, JSON_THROW_ON_ERROR);
-//    $result = $gateway->subscription()->create([
-//        'paymentMethodToken' => $gateway->customer()->find($memory['customer']['braintree_id'])->paymentMethods[0]->token,
-//        'merchantAccountId' => 'landingiUSD',
-//        'planId' => 'agency_19_months_12_usd'
-//    ]);
+    if (isset($body['nonce'])) {
+        $result = $gateway->subscription()->create([
+            'paymentMethodNonce' => $body['nonce'],
+            'merchantAccountId' => 'landingiUSD',
+            'planId' => 'agency_19_months_12_usd'
+        ]);
+    } else {
+        $memory = json_decode(file_get_contents('memory/customer.json'), true, 512, JSON_THROW_ON_ERROR);
+        $result = $gateway->subscription()->create([
+            'paymentMethodToken' => $gateway->customer()->find($memory['customer']['braintree_id'])->paymentMethods[0]->token,
+            'merchantAccountId' => 'landingiUSD',
+            'planId' => 'agency_19_months_12_usd'
+        ]);
+    }
+
     $response
         ->withHeader('Content-Type', 'application/json')
         ->getBody()

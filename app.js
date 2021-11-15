@@ -56,6 +56,15 @@ document.querySelector('#transaction').addEventListener('submit', (event) => {
 
 async function run(card_number, expiration_date, cvv_number)
 {
+    //1. Create customer from Invoice Data
+    //2. Fetch Braintree Token from backend
+    //3. Authorize Braintree Client SDK
+    //4. Tokenize Credit Card
+    //5. Create Payment Method
+    //6. Create Payment Method Nonce
+    //7. Enrich Payment Method Nonce via 3DS
+    //8. Create Transaction or Subscription
+
     console.log({
         card_number,
         expiration_date,
@@ -67,114 +76,118 @@ async function run(card_number, expiration_date, cvv_number)
         console.log(error);
     })
 
-
     const { token } =  await request('GET', '/braintree/token')
 
-braintree.client
-    .create({
-        authorization: token
-    })
-    .then(function (clientInstance) {
-        clientInstance
-            .request({
-                endpoint: 'payment_methods/credit_cards',
-                method: 'post',
-                data: {
-                    creditCard: {
-                        number: card_number,
-                        expirationDate: expiration_date,
-                        cvv: cvv_number,
-                        options: {
-                            validate: true,
-                        }
-                    },
-               }
-            })
-            .then(function (response) {
-                console.log('creditCardResponse', response);
-                const creditCardResponse = response;
-
-                request('POST', '/braintree/payment-method', {
-                    token: creditCardResponse.creditCards[0].nonce
+    braintree.client
+        .create({
+            authorization: token
+        })
+        .then(function (clientInstance) {
+            clientInstance
+                .request({
+                    endpoint: 'payment_methods/credit_cards',
+                    method: 'post',
+                    data: {
+                        creditCard: {
+                            number: card_number,
+                            expirationDate: expiration_date,
+                            cvv: cvv_number,
+                            options: {
+                                validate: true,
+                            }
+                        },
+                   }
                 })
                 .then(function (response) {
-                    console.log('Create Payment Method', response);
-                    braintree.threeDSecure
-                        .create({
-                            version: 2, // Will use 3DS 2 whenever possible
-                            client: clientInstance
+                    console.log('creditCardResponse', response);
+                    const creditCardResponse = response;
+
+                    request('POST', '/braintree/payment-method', {
+                        nonce: creditCardResponse.creditCards[0].nonce
+                    })
+                    .then(function (response) {
+                        request('POST', '/braintree/payment-method-nonce', {
+                            token: response.token
                         })
-                        .then(function (threeDSecureInstance) {
-                            // console.log(response.nonce);
-                            threeDSecureInstance
-                                .verifyCard({
-                                    amount: 1788.00,
-                                    nonce: response.nonce, // Example: hostedFieldsTokenizationPayload.nonce
-                                    bin: creditCardResponse.creditCards[0].bin,
-                                    email: "email@domain.com",
-                                    onLookupComplete: function (data, next) {
-                                        next();
-                                    }
+                        .then(function (response) {
+                            console.log('Create Payment Method', response);
+                            braintree.threeDSecure
+                                .create({
+                                    version: 2, // Will use 3DS 2 whenever possible
+                                    client: clientInstance
                                 })
-                                .then(function (response) {
-                                    //liabilityShifted indicates that 3D Secure worked and authentication succeeded.
-                                    //This will also be true if the issuing bank does not support 3D Secure, but the payment method does.
-                                    if (response.liabilityShifted === true) {
-                                        console.log('User succeeded 3DS verification', response)
-                                        request('POST', '/payments/subscriptions', {
-                                            nonce: response.nonce
+                                .then(function (threeDSecureInstance) {
+                                    // console.log(response.nonce);
+                                    threeDSecureInstance
+                                        .verifyCard({
+                                            amount: 1788.00,
+                                            nonce: response.nonce, // Example: hostedFieldsTokenizationPayload.nonce
+                                            bin: creditCardResponse.creditCards[0].bin,
+                                            email: "email@domain.com",
+                                            onLookupComplete: function (data, next) {
+                                                next();
+                                            }
                                         })
                                         .then(function (response) {
-                                            console.log(response);
+                                            //liabilityShifted indicates that 3D Secure worked and authentication succeeded.
+                                            //This will also be true if the issuing bank does not support 3D Secure, but the payment method does.
+                                            if (response.liabilityShifted === true) {
+                                                console.log('User succeeded 3DS verification', response)
+                                                request('POST', '/payments/subscriptions', {
+                                                    nonce: response.nonce
+                                                })
+                                                    .then(function (response) {
+                                                        console.log(response);
+                                                    })
+                                                    .catch(function (error) {
+                                                        console.log(error);
+                                                    })
+
+                                                return;
+                                            }
+
+                                            //When liabilityShiftPossible is true that means it should check the 3DS.
+                                            if (response.liabilityShiftPossible === true) {
+                                                if (response.liabilityShifted === true) {
+                                                    console.log('User succeeded 3DS verification', response)
+
+                                                    request('POST', '/payments/subscriptions', {
+                                                        nonce: response.nonce
+                                                    })
+                                                        .then(function (response) {
+                                                            console.log(response);
+                                                        })
+                                                        .catch(function (error) {
+                                                            console.log(error);
+                                                        })
+                                                } else {
+                                                    console.log('User failed 3DS verification', response)
+                                                }
+
+                                                return;
+                                            }
+
+                                            //This card was ineligible for 3D Secure.
+                                            if (response.liabilityShiftPossible === false && response.liabilityShifted === false) {
+                                                console.log('Create Transaction', response.nonce);
+
+                                                request('POST', '/payments/subscriptions', {
+                                                    nonce: response.nonce
+                                                })
+                                                    .then(function (response) {
+                                                        console.log(response);
+                                                    })
+                                                    .catch(function (error) {
+                                                        console.log(error);
+                                                    })
+                                            }
                                         })
                                         .catch(function (error) {
                                             console.log(error);
-                                        })
-
-                                        return;
-                                    }
-
-                                    //When liabilityShiftPossible is true that means it should check the 3DS.
-                                    if (response.liabilityShiftPossible === true) {
-                                        if (response.liabilityShifted === true) {
-                                            console.log('User succeeded 3DS verification', response)
-
-                                            request('POST', '/payments/subscriptions', {
-                                                nonce: response.nonce
-                                            })
-                                            .then(function (response) {
-                                                console.log(response);
-                                            })
-                                            .catch(function (error) {
-                                                console.log(error);
-                                            })
-                                        } else {
-                                            console.log('User failed 3DS verification', response)
-                                        }
-
-                                        return;
-                                    }
-
-                                    //This card was ineligible for 3D Secure.
-                                    if (response.liabilityShiftPossible === false && response.liabilityShifted === false) {
-                                        console.log('Create Transaction', response.nonce);
-
-                                        request('POST', '/payments/subscriptions', {
-                                            nonce: response.nonce
-                                        })
-                                        .then(function (response) {
-                                            console.log(response);
-                                        })
-                                        .catch(function (error) {
-                                            console.log(error);
-                                        })
-                                    }
+                                        });
                                 })
-                                .catch(function (error) {
-                                    console.log(error);
-                                });
-                            })
-                   })
-            })
-    })
+                        })
+                    })
+                })
+        })
 }
