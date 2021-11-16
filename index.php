@@ -54,6 +54,9 @@ $app->map(['POST'], '/braintree/payment-method', static function (Request $reque
         ],
         'options' => [
             'makeDefault' => true,
+            'verifyCard' => true,
+            'verificationMerchantAccountId' => 'landingiUSD',
+            'verificationAmount' => '1.00',
         ]
     ]);
 
