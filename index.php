@@ -11,10 +11,16 @@ $gateway = new Gateway(json_decode(file_get_contents('.env.json'), true, 512, JS
 
 $app->get('/', new \Ferror\HomeAction());
 
+$app->options('/{routes:.+}', function (Request $request, Response $response) {
+    return $response
+        ->withHeader('Access-Control-Allow-Origin', 'http://localhost:63342')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+});
+
 $app->map(['POST'], '/customers', static function (Request $request, Response $response, array $args) use ($gateway) {
     // create Customer in Wfirma
     // create Customer in Braintree
-
     // create Customer in DB and external ids (braintree, wfrima)
     $result = $gateway->customer()->create([
         'email' => 'email@domain.com',
@@ -25,15 +31,16 @@ $app->map(['POST'], '/customers', static function (Request $request, Response $r
 
     file_put_contents('memory/customer.json', json_encode(['customer' => ['braintree_id' => $result->customer->id]], JSON_THROW_ON_ERROR));
 
-    $response
-        ->withHeader('Content-Type', 'application/json')
-        ->withHeader('Access-Control-Allow-Origin', '*')
-        ->getBody()->write(json_encode($result, JSON_THROW_ON_ERROR));
+    $response = $response
+        ->withHeader('Access-Control-Allow-Origin', 'http://localhost:63342')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    $response->getBody()->write(json_encode($result, JSON_THROW_ON_ERROR));
 
     return $response;
 });
 
-$app->map(['GET', 'OPTIONS'], '/braintree/token', new \Ferror\CreateBraintreeTokenAction($gateway));
+$app->map(['GET'], '/braintree/token', new \Ferror\CreateBraintreeTokenAction($gateway));
 
 $app->map(['POST'], '/braintree/payment-method', static function (Request $request, Response $response) use ($gateway) {
     $body = json_decode($request->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
@@ -60,10 +67,11 @@ $app->map(['POST'], '/braintree/payment-method', static function (Request $reque
         ]
     ]);
 
-    $response
-        ->withHeader('Content-Type', 'application/json')
-        ->getBody()
-        ->write(json_encode(['token' => $result->paymentMethod->token], JSON_THROW_ON_ERROR));
+    $response = $response
+        ->withHeader('Access-Control-Allow-Origin', 'http://localhost:63342')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    $response->getBody()->write(json_encode(['token' => $result->paymentMethod->token], JSON_THROW_ON_ERROR));
 
     return $response;
 });
@@ -71,10 +79,11 @@ $app->map(['POST'], '/braintree/payment-method', static function (Request $reque
 $app->map(['POST'], '/braintree/payment-method-nonce', static function (Request $request, Response $response) use ($gateway) {
     $body = json_decode($request->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
 
-    $response
-        ->withHeader('Content-Type', 'application/json')
-        ->getBody()
-        ->write(json_encode(['nonce' => $gateway->paymentMethodNonce()->create($body['token'])->paymentMethodNonce->nonce], JSON_THROW_ON_ERROR));
+    $response = $response
+        ->withHeader('Access-Control-Allow-Origin', 'http://localhost:63342')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    $response->getBody()->write(json_encode(['nonce' => $gateway->paymentMethodNonce()->create($body['token'])->paymentMethodNonce->nonce], JSON_THROW_ON_ERROR));
 
     return $response;
 });
@@ -101,10 +110,11 @@ $app->map(['POST'], '/payments/subscriptions', function (Request $request, Respo
         ]);
     }
 
-    $response
-        ->withHeader('Content-Type', 'application/json')
-        ->getBody()
-        ->write(json_encode([$result], JSON_THROW_ON_ERROR));
+    $response = $response
+        ->withHeader('Access-Control-Allow-Origin', 'http://localhost:63342')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    $response->getBody()->write(json_encode([$result], JSON_THROW_ON_ERROR));
 
     return $response;
 });
@@ -119,10 +129,12 @@ $app->map(['POST'], '/payments/transactions', function (Request $request, Respon
             'submitForSettlement' => true,
         ],
     ]);
-    $response
-        ->withHeader('Content-Type', 'application/json')
-        ->getBody()
-        ->write(json_encode([$result], JSON_THROW_ON_ERROR));
+
+    $response = $response
+        ->withHeader('Access-Control-Allow-Origin', 'http://localhost:63342')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    $response->getBody()->write(json_encode([$result], JSON_THROW_ON_ERROR));
 
     return $response;
 });

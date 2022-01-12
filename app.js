@@ -3,10 +3,8 @@ async function request(method, url, data = null) {
         const xhr = new XMLHttpRequest();
 
         xhr.open(method, 'http://localhost:8080' + url, true);
-        // xhr.setRequestHeader('Access-Control-Allow-Origin', '*')
-        // xhr.setRequestHeader('Access-Control-Request-Method', 'GET')
-        // xhr.setRequestHeader('Origin', 'localhost:8080)')
-        // xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Content-Type', 'application/json');
+
         xhr.onload = () => {
             const status = xhr.status;
 
@@ -120,7 +118,7 @@ async function run(card_number, expiration_date, cvv_number)
                                     // console.log(response.nonce);
                                     threeDSecureInstance
                                         .verifyCard({
-                                            amount: 1788.00,
+                                            amount: "0.00",
                                             nonce: response.nonce, // Example: hostedFieldsTokenizationPayload.nonce
                                             bin: creditCardResponse.creditCards[0].bin,
                                             email: "email@domain.com",
