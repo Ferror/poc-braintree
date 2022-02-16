@@ -23,19 +23,26 @@ document.querySelector('#billing-data').addEventListener('submit', (event) => {
     console.log('billing-data - form');
 });
 
+document.querySelector('#pp').addEventListener('submit', (event) => {
+    event.preventDefault();
+    console.log('paypal - form');
+
+    run_paypal();
+});
+
 document.querySelector('#cc').addEventListener('submit', (event) => {
     event.preventDefault();
     console.log('cc - form');
 
     //MASTERCARD
-    run(
+    run_credit_card(
         '5555555555554444',
         '11/23',
         '111'
     )
 
     //VISA
-    // run(
+    // run_credit_card(
     //     '4217651111111119',
     //     '11/23',
     //     '111'
@@ -52,7 +59,71 @@ document.querySelector('#transaction').addEventListener('submit', (event) => {
         })
 });
 
-async function run(card_number, expiration_date, cvv_number)
+async function run_paypal()
+{
+    request('POST', '/customers')
+        .catch(function (error) {
+            console.log(error);
+        })
+
+    const { token } =  await request('GET', '/braintree/token');
+
+    braintree.client
+        .create({
+            authorization: token
+        })
+        .then(function (clientInstance) {
+            return braintree.paypalCheckout.create({
+                client: clientInstance
+            });
+        }).then(function (paypalCheckoutInstance) {
+            return paypalCheckoutInstance.loadPayPalSDK({
+                vault: true,
+            });
+        })
+        .then(function (paypalCheckoutInstance) {
+            return paypal.Buttons({
+                fundingSource: paypal.FUNDING.PAYPAL,
+                createBillingAgreement: function () {
+                    return paypalCheckoutInstance.createPayment({
+                        flow: 'vault', // Required
+                    })
+                },
+                onApprove: function (data, actions) {
+                    console.log('PayPal payment approve', data);
+                    return paypalCheckoutInstance.tokenizePayment(data).then(function (payload) {
+                        // Submit `payload.nonce` to your server
+                        request('POST', '/braintree/payment-method', {
+                            nonce: payload.nonce
+                        })
+                            .then(function (response) {
+                                request('POST', '/payments/subscriptions', {
+                                    nonce: response.nonce
+                                })
+                                    .then(function (response) {
+                                        console.log(response);
+                                    })
+                                    .catch(function (error) {
+                                        console.log(error);
+                                    })
+                            })
+                    });
+                },
+                onCancel: function (data) {
+                    console.log('PayPal payment canceled', data);
+                },
+                onError: function (err) {
+                    console.error('PayPal payment error', err);
+                }
+            })
+            .render('#paypal-button');
+        })
+        .then(function () {
+            document.querySelector('#pp_submit').style.display = 'none';
+        })
+}
+
+async function run_credit_card(card_number, expiration_date, cvv_number)
 {
     //1. Create customer from Invoice Data
     //2. Fetch Braintree Token from backend
@@ -62,7 +133,6 @@ async function run(card_number, expiration_date, cvv_number)
     //6. Create Payment Method Nonce
     //7. Enrich Payment Method Nonce via 3DS
     //8. Create Transaction or Subscription
-
     console.log({
         card_number,
         expiration_date,
@@ -70,9 +140,9 @@ async function run(card_number, expiration_date, cvv_number)
     })
 
     request('POST', '/customers')
-    .catch(function (error) {
-        console.log(error);
-    })
+        .catch(function (error) {
+            console.log(error);
+        })
 
     const { token } =  await request('GET', '/braintree/token')
 

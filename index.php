@@ -7,7 +7,7 @@ use Slim\Factory\AppFactory;
 require __DIR__ . '/vendor/autoload.php';
 
 $app = AppFactory::create();
-$gateway = new Gateway(json_decode(file_get_contents('.env.json'), true, 512, JSON_THROW_ON_ERROR));
+$gateway = new Gateway(json_decode(file_get_contents('.env.json'), true, 512, JSON_THROW_ON_ERROR)['backend']);
 
 $app->get('/', new \Ferror\HomeAction());
 

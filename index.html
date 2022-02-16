@@ -16,6 +16,14 @@
         </fieldset>
     </form>
 
+    <form id="pp">
+        <fieldset>
+            <legend>Paypal</legend>
+            <input type="submit" id="pp_submit">
+            <div id="paypal-button"></div>
+        </fieldset>
+    </form>
+
     <form id="cc">
         <fieldset>
             <legend>Credit Card</legend>
@@ -34,8 +42,15 @@
         </fieldset>
     </form>
 
-    <script src="https://js.braintreegateway.com/web/3.84.0/js/client.min.js"></script>
-    <script src="https://js.braintreegateway.com/web/3.84.0/js/three-d-secure.min.js"></script>
+    <script src="https://www.paypal.com/sdk/js?client-id=CLIENT_ID_TODO"></script>
+
+    <script src="https://js.braintreegateway.com/web/3.85.2/js/client.min.js"></script>
+
+    <script src="https://js.braintreegateway.com/web/3.85.2/js/three-d-secure.min.js"></script>
+
+
+    <script src="https://js.braintreegateway.com/web/3.85.2/js/paypal-checkout.min.js"></script>
+
     <script src="app.js"></script>
 </body>
 </html>
